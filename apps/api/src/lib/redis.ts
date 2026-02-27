@@ -16,9 +16,10 @@ export function createRedisConnection(): IORedis {
     host: config.REDIS_HOST,
     port: config.REDIS_PORT,
     ...(config.REDIS_PRIMARY_KEY ? { password: config.REDIS_PRIMARY_KEY } : {}),
-    ...(useTls ? { tls: {} } : {}),
+    ...(useTls ? { tls: { servername: config.REDIS_HOST } } : {}),
     maxRetriesPerRequest: null, // Required by BullMQ
     enableReadyCheck: true,
+    connectTimeout: 15000,
     retryStrategy(times: number) {
       const delay = Math.min(times * 200, 5000);
       logger.warn({ attempt: times, delayMs: delay }, "Redis reconnecting");

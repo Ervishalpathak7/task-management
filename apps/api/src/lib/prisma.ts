@@ -10,7 +10,7 @@ let _prisma: PrismaClient | undefined;
 export function createPrismaClient(): PrismaClient {
   const config = getConfig();
   const logger = getLogger();
-  const pool = new Pool({ connectionString: config.DATABASE_URL });
+  const pool = new Pool({ connectionString: config.DATABASE_URL , ssl: { rejectUnauthorized: false } });
   const adapter = new PrismaPg(pool);
 
   _prisma = new PrismaClient({
