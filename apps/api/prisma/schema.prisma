@@ -1,16 +1,129 @@
-// Prisma schema — Task Management SaaS
-// Migration discipline: forward-only, no destructive changes
-
-datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-}
-
 generator client {
   provider = "prisma-client-js"
 }
 
-// ─── Domain Enums ───────────────────────────────────────────
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                  String               @id @default(uuid()) @db.Uuid
+  email               String               @unique
+  passwordHash        String?
+  name                String
+  status              UserStatus           @default(UNVERIFIED)
+  googleId            String?              @unique
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  deletedAt           DateTime?
+  groupMemberships    GroupMember[]
+  createdGroups       Group[]              @relation("GroupCreator")
+  passwordResetTokens PasswordResetToken[]
+  refreshTokens       RefreshToken[]
+  assignedTasks       Task[]               @relation("TaskAssignee")
+  createdTasks        Task[]               @relation("TaskCreator")
+  verificationTokens  VerificationToken[]
+
+  @@index([email])
+  @@index([googleId])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  tokenHash String
+  userId    String   @db.Uuid
+  family    String   @db.Uuid
+  revoked   Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, id])
+  @@index([tokenHash])
+  @@index([family])
+  @@map("refresh_tokens")
+}
+
+model VerificationToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  tokenHash String   @unique
+  userId    String   @db.Uuid
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  tokenHash String   @unique
+  userId    String   @db.Uuid
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("password_reset_tokens")
+}
+
+model Group {
+  id          String        @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  createdById String        @db.Uuid
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?
+  members     GroupMember[]
+  createdBy   User          @relation("GroupCreator", fields: [createdById], references: [id])
+  tasks       Task[]
+
+  @@index([createdById])
+  @@map("groups")
+}
+
+model GroupMember {
+  id       String    @id @default(uuid()) @db.Uuid
+  userId   String    @db.Uuid
+  groupId  String    @db.Uuid
+  role     GroupRole @default(MEMBER)
+  joinedAt DateTime  @default(now())
+  group    Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+  @@index([userId])
+  @@index([groupId])
+  @@map("group_members")
+}
+
+model Task {
+  id          String     @id @default(uuid()) @db.Uuid
+  title       String
+  description String?
+  status      TaskStatus @default(OPEN)
+  groupId     String     @db.Uuid
+  createdById String     @db.Uuid
+  assigneeId  String?    @db.Uuid
+  acceptedAt  DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+  assignee    User?      @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  createdBy   User       @relation("TaskCreator", fields: [createdById], references: [id])
+  group       Group      @relation(fields: [groupId], references: [id])
+
+  @@index([groupId])
+  @@index([createdById])
+  @@index([assigneeId])
+  @@index([status])
+  @@map("tasks")
+}
 
 enum UserStatus {
   UNVERIFIED
@@ -29,151 +142,4 @@ enum TaskStatus {
 enum GroupRole {
   ADMIN
   MEMBER
-}
-
-// ─── User ───────────────────────────────────────────────────
-
-model User {
-  id            String     @id @default(uuid()) @db.Uuid
-  email         String     @unique
-  passwordHash  String?
-  name          String
-  status        UserStatus @default(UNVERIFIED)
-  googleId      String?    @unique
-
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  deletedAt     DateTime?
-
-  refreshTokens      RefreshToken[]
-  verificationTokens VerificationToken[]
-  passwordResetTokens PasswordResetToken[]
-  groupMemberships   GroupMember[]
-  createdTasks       Task[]         @relation("TaskCreator")
-  assignedTasks      Task[]         @relation("TaskAssignee")
-  createdGroups      Group[]        @relation("GroupCreator")
-
-  @@index([email])
-  @@index([googleId])
-  @@map("users")
-}
-
-// ─── Refresh Token ──────────────────────────────────────────
-
-model RefreshToken {
-  id          String   @id @default(uuid()) @db.Uuid
-  tokenHash   String
-  userId      String   @db.Uuid
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  family      String   @db.Uuid
-  revoked     Boolean  @default(false)
-
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
-
-  @@index([userId, id])
-  @@index([tokenHash])
-  @@index([family])
-  @@map("refresh_tokens")
-}
-
-// ─── Email Verification Token ───────────────────────────────
-
-model VerificationToken {
-  id          String   @id @default(uuid()) @db.Uuid
-  tokenHash   String   @unique
-  userId      String   @db.Uuid
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
-
-  @@index([userId])
-  @@index([tokenHash])
-  @@map("verification_tokens")
-}
-
-// ─── Password Reset Token ───────────────────────────────────
-
-model PasswordResetToken {
-  id          String   @id @default(uuid()) @db.Uuid
-  tokenHash   String   @unique
-  userId      String   @db.Uuid
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
-
-  @@index([userId])
-  @@index([tokenHash])
-  @@map("password_reset_tokens")
-}
-
-// ─── Group ──────────────────────────────────────────────────
-
-model Group {
-  id          String   @id @default(uuid()) @db.Uuid
-  name        String
-  description String?
-  createdById String   @db.Uuid
-  createdBy   User     @relation("GroupCreator", fields: [createdById], references: [id])
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deletedAt   DateTime?
-
-  members     GroupMember[]
-  tasks       Task[]
-
-  @@index([createdById])
-  @@map("groups")
-}
-
-// ─── Group Membership ───────────────────────────────────────
-
-model GroupMember {
-  id        String    @id @default(uuid()) @db.Uuid
-  userId    String    @db.Uuid
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  groupId   String    @db.Uuid
-  group     Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  role      GroupRole  @default(MEMBER)
-
-  joinedAt  DateTime  @default(now())
-
-  @@unique([userId, groupId])
-  @@index([userId])
-  @@index([groupId])
-  @@map("group_members")
-}
-
-// ─── Task ───────────────────────────────────────────────────
-
-model Task {
-  id            String     @id @default(uuid()) @db.Uuid
-  title         String
-  description   String?
-  status        TaskStatus @default(OPEN)
-
-  groupId       String     @db.Uuid
-  group         Group      @relation(fields: [groupId], references: [id])
-
-  createdById   String     @db.Uuid
-  createdBy     User       @relation("TaskCreator", fields: [createdById], references: [id])
-
-  assigneeId    String?    @db.Uuid
-  assignee      User?      @relation("TaskAssignee", fields: [assigneeId], references: [id])
-
-  acceptedAt    DateTime?
-
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  deletedAt     DateTime?
-
-  @@index([groupId])
-  @@index([createdById])
-  @@index([assigneeId])
-  @@index([status])
-  @@map("tasks")
 }
