@@ -1,12 +1,15 @@
 import { PrismaClient } from "@prisma/client";
+import { getConfig } from "../config/index.js";
 import { getLogger } from "./logger.js";
 
 let _prisma: PrismaClient | undefined;
 
 export function createPrismaClient(): PrismaClient {
+  const config = getConfig();
   const logger = getLogger();
 
   _prisma = new PrismaClient({
+    datasourceUrl: config.DATABASE_URL,
     log: [
       { emit: "stdout", level: "error" },
       { emit: "stdout", level: "warn" },
