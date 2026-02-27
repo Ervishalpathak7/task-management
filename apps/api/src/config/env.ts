@@ -42,7 +42,7 @@ const envSchema = z.object({
 
   // Datadog
   DD_API_KEY: z.string().optional(),
-  DD_SITE: z.string().default("datadoghq.com"),
+  DD_SITE: z.string().default("us5.datadoghq.com"),
   DD_AGENT_HOST: z.string().default("localhost"),
   DD_TRACE_AGENT_PORT: z.coerce.number().default(8126),
   DD_SERVICE: z.string().default("task-management-api"),
@@ -61,7 +61,10 @@ export function loadConfig(): EnvConfig {
   if (!parsed.success) {
     const formatted = parsed.error.flatten().fieldErrors;
     const message = Object.entries(formatted)
-      .map(([key, errors]) => `  ${key}: ${(errors ?? []).join(", ")}`)
+      .map(
+        ([key, errors]) =>
+          `  ${key}: ${(errors as string[] | undefined)?.join(", ") ?? "unknown"}`,
+      )
       .join("\n");
     throw new Error(`Invalid environment configuration:\n${message}`);
   }

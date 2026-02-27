@@ -1,5 +1,4 @@
 import { Worker, type Job } from "bullmq";
-import type IORedis from "ioredis";
 import { getRedisConnection } from "../lib/redis.js";
 import { getLogger } from "../lib/logger.js";
 import { getEmailProvider } from "../services/email.service.js";
@@ -29,7 +28,7 @@ export function startEmailWorker(): Worker {
       );
     },
     {
-      connection: connection as IORedis,
+      connection,
       concurrency: 5,
       limiter: {
         max: 10,

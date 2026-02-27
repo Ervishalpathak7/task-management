@@ -46,7 +46,7 @@ import {
 import { getConfig } from "../config/index.js";
 import { audit } from "../lib/audit.js";
 
-export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
+export function registerAuthRoutes(app: FastifyInstance): void {
   // ─── POST /api/v1/auth/register ─────────────────────────
 
   app.post(
@@ -196,11 +196,16 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       const rawToken = getRefreshTokenFromCookie(
         request.cookies as Record<string, string | undefined>,
       );
-      await logoutUser(rawToken, request.user!.sub);
+      const userId = request.user?.sub;
+      if (!userId) {
+        await reply.status(401).send({ status: 401, detail: "Unauthorized" });
+        return;
+      }
+      await logoutUser(rawToken, userId);
       clearAuthCookies(reply);
       audit({
         action: "AUTH_LOGOUT",
-        actorId: request.user!.sub,
+        actorId: userId,
         targetType: "user",
       });
       await reply.status(200).send({ message: "Logged out" });
@@ -367,7 +372,12 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [requireAuth] },
     async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
       try {
-        const profile = await getUserProfile(request.user!.sub);
+        const userId = request.user?.sub;
+        if (!userId) {
+          await reply.status(401).send({ status: 401, detail: "Unauthorized" });
+          return;
+        }
+        const profile = await getUserProfile(userId);
         await reply.status(200).send({ user: profile });
       } catch (err: unknown) {
         if (err instanceof AuthError) {
@@ -391,8 +401,13 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     "/api/v1/auth/me",
     { preHandler: [requireAuth, validateBody(updateProfileSchema)] },
     async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+      const userId = request.user?.sub;
+      if (!userId) {
+        await reply.status(401).send({ status: 401, detail: "Unauthorized" });
+        return;
+      }
       const body = request.body as UpdateProfileInput;
-      const profile = await updateProfile(request.user!.sub, body);
+      const profile = await updateProfile(userId, body);
       await reply.status(200).send({ user: profile });
     },
   );

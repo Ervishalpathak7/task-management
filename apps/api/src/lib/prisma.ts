@@ -6,11 +6,13 @@ import { Pool } from "pg";
 
 let _prisma: PrismaClient | undefined;
 
-
 export function createPrismaClient(): PrismaClient {
   const config = getConfig();
   const logger = getLogger();
-  const pool = new Pool({ connectionString: config.DATABASE_URL , ssl: { rejectUnauthorized: false } });
+  const pool = new Pool({
+    connectionString: config.DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
+  });
   const adapter = new PrismaPg(pool);
 
   _prisma = new PrismaClient({
@@ -23,8 +25,12 @@ export function createPrismaClient(): PrismaClient {
 
   _prisma
     .$connect()
-    .then(() => logger.info("Prisma connected"))
-    .catch((err: unknown) => logger.error({ err }, "Prisma connection failed"));
+    .then(() => {
+      logger.info("Prisma connected");
+    })
+    .catch((err: unknown) => {
+      logger.error({ err }, "Prisma connection failed");
+    });
 
   return _prisma;
 }

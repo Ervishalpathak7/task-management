@@ -19,9 +19,17 @@ export async function healthCheckHandler(
     logger.error({ err }, "Health check: database unreachable");
   }
 
-  // Redis check — placeholder until Redis client is wired
-  // For now, mark as "ok" since Redis is not yet integrated
-  redisStatus = "ok";
+  // Check Redis
+  try {
+    const { getRedisConnection } = await import("../lib/redis.js");
+    const redis = getRedisConnection();
+    const pong = await redis.ping();
+    if (pong === "PONG") {
+      redisStatus = "ok";
+    }
+  } catch (err: unknown) {
+    logger.error({ err }, "Health check: redis unreachable");
+  }
 
   const overallStatus =
     dbStatus === "ok" && redisStatus === "ok" ? "ok" : "degraded";

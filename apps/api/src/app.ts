@@ -75,7 +75,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       },
       servers: [
         {
-          url: `http://localhost:${config.PORT}`,
+          url: `http://localhost:${String(config.PORT)}`,
           description: "Local development",
         },
       ],
@@ -129,7 +129,7 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // ─── Request logging with tracing ──────────────────────
 
-  app.addHook("onRequest", async (request) => {
+  app.addHook("onRequest", (request, _reply, done) => {
     logger.info(
       {
         requestId: request.id,
@@ -139,6 +139,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       },
       "Incoming request",
     );
+    done();
   });
 
   app.addHook("onResponse", async (request, reply) => {

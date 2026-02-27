@@ -1,5 +1,4 @@
 import { Queue } from "bullmq";
-import type IORedis from "ioredis";
 import { getRedisConnection } from "../lib/redis.js";
 import { getLogger } from "../lib/logger.js";
 import type { EmailPayload } from "../services/email.service.js";
@@ -19,7 +18,7 @@ export function initQueues(): void {
   const logger = getLogger();
 
   _emailQueue = new Queue(QUEUE_NAMES.EMAIL, {
-    connection: connection as IORedis,
+    connection,
     defaultJobOptions: {
       removeOnComplete: { count: 100 },
       removeOnFail: { count: 500 },
@@ -57,7 +56,7 @@ export async function enqueueEmail(data: EmailJobData): Promise<void> {
     const queue = getEmailQueue();
     await queue.add(`email:${data.type}`, data, {
       // Dedup: same email type + recipient within 60s
-      jobId: `${data.type}:${data.payload.to}:${Math.floor(Date.now() / 60000)}`,
+      jobId: `${data.type}:${data.payload.to}:${String(Math.floor(Date.now() / 60000))}`,
     });
     logger.debug(
       { type: data.type, to: data.payload.to },

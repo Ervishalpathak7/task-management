@@ -1,6 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import fastifyRateLimit from "@fastify/rate-limit";
-import type IORedis from "ioredis";
 import { getRedisConnection } from "../lib/redis.js";
 import { getLogger } from "../lib/logger.js";
 
@@ -16,7 +15,7 @@ export async function registerRateLimiting(
   await app.register(fastifyRateLimit, {
     max: API_RATE_LIMIT.max,
     timeWindow: API_RATE_LIMIT.timeWindow,
-    redis: redis as IORedis,
+    redis,
     nameSpace: "rl:",
     keyGenerator: (request: FastifyRequest) => {
       return request.user?.sub ?? request.ip;
@@ -28,7 +27,7 @@ export async function registerRateLimiting(
       type: "https://api.taskmanagement.com/errors/rate-limited",
       title: "Too Many Requests",
       status: 429,
-      detail: `Rate limit exceeded. Retry after ${Math.ceil(context.ttl / 1000)} seconds.`,
+      detail: `Rate limit exceeded. Retry after ${String(Math.ceil(context.ttl / 1000))} seconds.`,
     }),
     onExceeded: (request: FastifyRequest) => {
       logger.warn(

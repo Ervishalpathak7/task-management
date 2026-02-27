@@ -16,7 +16,7 @@ export interface EmailProvider {
 // ─── Console provider (dev/test — logs emails to stdout) ────
 
 export class ConsoleEmailProvider implements EmailProvider {
-  async send(payload: EmailPayload): Promise<void> {
+  send(payload: EmailPayload): Promise<void> {
     const logger = getLogger();
     logger.info(
       {
@@ -27,14 +27,16 @@ export class ConsoleEmailProvider implements EmailProvider {
       "EMAIL SENT (console provider)",
     );
     logger.debug({ emailBody: payload.text }, "Email body");
+    return Promise.resolve();
   }
 }
 
 // ─── Noop provider (when ENABLE_EMAIL is off) ───────────────
 
 export class NoopEmailProvider implements EmailProvider {
-  async send(_payload: EmailPayload): Promise<void> {
+  send(_payload: EmailPayload): Promise<void> {
     // Intentionally does nothing
+    return Promise.resolve();
   }
 }
 

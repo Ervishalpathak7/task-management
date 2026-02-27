@@ -20,7 +20,7 @@ export function createRedisConnection(): IORedis {
     maxRetriesPerRequest: null, // Required by BullMQ
     enableReadyCheck: true,
     connectTimeout: 15000,
-    retryStrategy(times: number) {
+    retryStrategy(times: number): number {
       const delay = Math.min(times * 200, 5000);
       logger.warn({ attempt: times, delayMs: delay }, "Redis reconnecting");
       return delay;

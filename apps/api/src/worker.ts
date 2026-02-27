@@ -6,7 +6,7 @@ import { initEmailProvider } from "./services/email.service.js";
 import { initQueues, closeQueues } from "./queue/producer.js";
 import { startEmailWorker, stopEmailWorker } from "./queue/consumer.js";
 
-async function main(): Promise<void> {
+function main(): void {
   // 1. Config + Logger
   loadConfig();
   const config = getConfig();

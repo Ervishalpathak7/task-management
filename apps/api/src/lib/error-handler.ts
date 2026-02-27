@@ -55,8 +55,8 @@ export function globalErrorHandler(
   }
 
   const problem: ApiProblem = {
-    type: `https://api.taskmanagement.com/errors/${fastifyError.code ?? "internal-error"}`,
-    title: error.name ?? "Internal Server Error",
+    type: `https://api.taskmanagement.com/errors/${(fastifyError.code as string | undefined) ?? "internal-error"}`,
+    title: (error.name as string | undefined) ?? "Internal Server Error",
     status: statusCode,
     detail: statusCode >= 500 ? "An unexpected error occurred" : error.message,
     instance: request.url,

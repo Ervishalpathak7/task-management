@@ -30,7 +30,7 @@ async function main(): Promise<void> {
       {
         port: config.PORT,
         host: config.HOST,
-        docs: `http://localhost:${config.PORT}/docs`,
+        docs: `http://localhost:${String(config.PORT)}/docs`,
       },
       "Server started",
     );
