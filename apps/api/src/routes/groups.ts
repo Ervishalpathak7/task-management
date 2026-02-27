@@ -53,7 +53,19 @@ function handleGroupError(
   throw err;
 }
 
-export async function registerGroupRoutes(app: FastifyInstance): Promise<void> {
+function getUserId(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): string | null {
+  const userId = request.user?.sub;
+  if (!userId) {
+    void reply.status(401).send({ status: 401, detail: "Unauthorized" });
+    return null;
+  }
+  return userId;
+}
+
+export function registerGroupRoutes(app: FastifyInstance): void {
   // ─── POST /api/v1/groups ────────────────────────────────
 
   app.post(
@@ -67,8 +79,10 @@ export async function registerGroupRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
       try {
+        const userId = getUserId(request, reply);
+        if (!userId) return;
         const body = request.body as CreateGroupInput;
-        const group = await createGroup(body, request.user!.sub);
+        const group = await createGroup(body, userId);
         await reply.status(201).send({ group });
       } catch (err: unknown) {
         handleGroupError(err, request, reply);
@@ -88,8 +102,10 @@ export async function registerGroupRoutes(app: FastifyInstance): Promise<void> {
       ],
     },
     async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+      const userId = getUserId(request, reply);
+      if (!userId) return;
       const query = request.query as PaginationInput;
-      const result = await listUserGroups(request.user!.sub, query);
+      const result = await listUserGroups(userId, query);
       await reply.status(200).send({
         groups: result.groups,
         pagination: {
@@ -115,8 +131,10 @@ export async function registerGroupRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
       try {
+        const userId = getUserId(request, reply);
+        if (!userId) return;
         const params = request.params as UuidParam;
-        const group = await getGroupById(params.id, request.user!.sub);
+        const group = await getGroupById(params.id, userId);
         await reply.status(200).send({ group });
       } catch (err: unknown) {
         handleGroupError(err, request, reply);
@@ -138,9 +156,11 @@ export async function registerGroupRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
       try {
+        const userId = getUserId(request, reply);
+        if (!userId) return;
         const params = request.params as UuidParam;
         const body = request.body as UpdateGroupInput;
-        const group = await updateGroup(params.id, body, request.user!.sub);
+        const group = await updateGroup(params.id, body, userId);
         await reply.status(200).send({ group });
       } catch (err: unknown) {
         handleGroupError(err, request, reply);
@@ -162,9 +182,11 @@ export async function registerGroupRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
       try {
+        const userId = getUserId(request, reply);
+        if (!userId) return;
         const params = request.params as UuidParam;
         const body = request.body as AddGroupMemberInput;
-        await addMember(params.id, body, request.user!.sub);
+        await addMember(params.id, body, userId);
         await reply.status(201).send({ message: "Member added" });
       } catch (err: unknown) {
         handleGroupError(err, request, reply);
@@ -185,8 +207,10 @@ export async function registerGroupRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
       try {
+        const userId = getUserId(request, reply);
+        if (!userId) return;
         const params = request.params as { id: string; userId: string };
-        await removeMember(params.id, params.userId, request.user!.sub);
+        await removeMember(params.id, params.userId, userId);
         await reply.status(200).send({ message: "Member removed" });
       } catch (err: unknown) {
         handleGroupError(err, request, reply);

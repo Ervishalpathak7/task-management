@@ -173,13 +173,13 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   // Auth routes
-  await registerAuthRoutes(app);
+  registerAuthRoutes(app);
 
   // Group routes
-  await registerGroupRoutes(app);
+  registerGroupRoutes(app);
 
   // Task routes
-  await registerTaskRoutes(app);
+  registerTaskRoutes(app);
 
   // Generate Swagger spec after routes are registered
   await app.ready();

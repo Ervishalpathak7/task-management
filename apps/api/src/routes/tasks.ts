@@ -53,11 +53,23 @@ function handleTaskError(
   throw err;
 }
 
+function getUserId(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): string | null {
+  const userId = request.user?.sub;
+  if (!userId) {
+    void reply.status(401).send({ status: 401, detail: "Unauthorized" });
+    return null;
+  }
+  return userId;
+}
+
 const groupTasksParamsSchema = z.object({
   groupId: z.string().uuid(),
 });
 
-export async function registerTaskRoutes(app: FastifyInstance): Promise<void> {
+export function registerTaskRoutes(app: FastifyInstance): void {
   // ─── POST /api/v1/tasks ─────────────────────────────────
 
   app.post(
@@ -71,8 +83,10 @@ export async function registerTaskRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
       try {
+        const userId = getUserId(request, reply);
+        if (!userId) return;
         const body = request.body as CreateTaskInput;
-        const task = await createTask(body, request.user!.sub);
+        const task = await createTask(body, userId);
         await reply.status(201).send({ task });
       } catch (err: unknown) {
         handleTaskError(err, request, reply);
@@ -94,13 +108,11 @@ export async function registerTaskRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
       try {
+        const userId = getUserId(request, reply);
+        if (!userId) return;
         const params = request.params as { groupId: string };
         const query = request.query as PaginationInput;
-        const result = await listTasksByGroup(
-          params.groupId,
-          request.user!.sub,
-          query,
-        );
+        const result = await listTasksByGroup(params.groupId, userId, query);
         await reply.status(200).send({
           tasks: result.tasks,
           pagination: {
@@ -129,8 +141,10 @@ export async function registerTaskRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
       try {
+        const userId = getUserId(request, reply);
+        if (!userId) return;
         const params = request.params as UuidParam;
-        const task = await getTaskById(params.id, request.user!.sub);
+        const task = await getTaskById(params.id, userId);
         await reply.status(200).send({ task });
       } catch (err: unknown) {
         handleTaskError(err, request, reply);
@@ -152,9 +166,11 @@ export async function registerTaskRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
       try {
+        const userId = getUserId(request, reply);
+        if (!userId) return;
         const params = request.params as UuidParam;
         const body = request.body as UpdateTaskInput;
-        const task = await updateTask(params.id, body, request.user!.sub);
+        const task = await updateTask(params.id, body, userId);
         await reply.status(200).send({ task });
       } catch (err: unknown) {
         handleTaskError(err, request, reply);
@@ -176,13 +192,11 @@ export async function registerTaskRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
       try {
+        const userId = getUserId(request, reply);
+        if (!userId) return;
         const params = request.params as UuidParam;
         const body = request.body as UpdateTaskStatusInput;
-        const task = await updateTaskStatus(
-          params.id,
-          body.status,
-          request.user!.sub,
-        );
+        const task = await updateTaskStatus(params.id, body.status, userId);
         await reply.status(200).send({ task });
       } catch (err: unknown) {
         handleTaskError(err, request, reply);
@@ -203,8 +217,10 @@ export async function registerTaskRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
       try {
+        const userId = getUserId(request, reply);
+        if (!userId) return;
         const params = request.params as UuidParam;
-        const task = await acceptTask(params.id, request.user!.sub);
+        const task = await acceptTask(params.id, userId);
         await reply.status(200).send({ task });
       } catch (err: unknown) {
         handleTaskError(err, request, reply);
@@ -226,13 +242,11 @@ export async function registerTaskRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
       try {
+        const userId = getUserId(request, reply);
+        if (!userId) return;
         const params = request.params as UuidParam;
         const body = request.body as AssignTaskInput;
-        const task = await assignTask(
-          params.id,
-          body.assigneeId,
-          request.user!.sub,
-        );
+        const task = await assignTask(params.id, body.assigneeId, userId);
         await reply.status(200).send({ task });
       } catch (err: unknown) {
         handleTaskError(err, request, reply);
@@ -253,8 +267,10 @@ export async function registerTaskRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
       try {
+        const userId = getUserId(request, reply);
+        if (!userId) return;
         const params = request.params as UuidParam;
-        await deleteTask(params.id, request.user!.sub);
+        await deleteTask(params.id, userId);
         await reply.status(200).send({ message: "Task deleted" });
       } catch (err: unknown) {
         handleTaskError(err, request, reply);

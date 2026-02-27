@@ -23,10 +23,8 @@ export async function healthCheckHandler(
   try {
     const { getRedisConnection } = await import("../lib/redis.js");
     const redis = getRedisConnection();
-    const pong = await redis.ping();
-    if (pong === "PONG") {
-      redisStatus = "ok";
-    }
+    await redis.ping();
+    redisStatus = "ok";
   } catch (err: unknown) {
     logger.error({ err }, "Health check: redis unreachable");
   }

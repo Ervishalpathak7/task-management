@@ -53,4 +53,4 @@ function main(): void {
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
 }
 
-void main();
+main();
