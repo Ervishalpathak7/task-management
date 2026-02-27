@@ -1,0 +1,7 @@
+node_modules
+dist
+.next
+.git
+*.md
+coverage
+.env*

@@ -1,0 +1,119 @@
+# Docker Compose — Task Management SaaS
+# Infrastructure: Supabase Postgres (managed) + Azure Redis (managed) + Datadog APM
+# Only application services run locally in Docker.
+
+services:
+  # ─── Datadog Agent ────────────────────────────────────────
+  datadog-agent:
+    image: gcr.io/datadoghq/agent:7
+    container_name: tm-datadog
+    restart: unless-stopped
+    env_file:
+      - apps/api/.env
+    environment:
+      DD_APM_ENABLED: "true"
+      DD_APM_NON_LOCAL_TRAFFIC: "true"
+      DD_LOGS_ENABLED: "true"
+      DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: "true"
+      DD_PROCESS_AGENT_ENABLED: "true"
+      DD_DOGSTATSD_NON_LOCAL_TRAFFIC: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    ports:
+      - "8126:8126"   # APM traces
+      - "8125:8125/udp" # DogStatsD metrics
+
+  # ─── API Server ───────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: tm-api
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    env_file:
+      - apps/api/.env
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      HOST: 0.0.0.0
+      DD_AGENT_HOST: datadog-agent
+      DD_TRACE_AGENT_PORT: "8126"
+      DD_SERVICE: task-management-api
+      DD_ENV: production
+      DD_VERSION: "0.0.1"
+    depends_on:
+      - datadog-agent
+    labels:
+      com.datadoghq.ad.logs: '[{"source": "nodejs", "service": "task-management-api"}]'
+    healthcheck:
+      test:
+        ["CMD-SHELL", "wget -qO- http://localhost:3001/api/v1/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ─── Background Worker ───────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: tm-worker
+    restart: unless-stopped
+    command: ["node", "--require", "./dist/lib/tracer.js", "dist/worker.js"]
+    env_file:
+      - apps/api/.env
+    environment:
+      NODE_ENV: production
+      ENABLE_EMAIL: "true"
+      DD_AGENT_HOST: datadog-agent
+      DD_TRACE_AGENT_PORT: "8126"
+      DD_SERVICE: task-management-worker
+      DD_ENV: production
+      DD_VERSION: "0.0.1"
+    depends_on:
+      - datadog-agent
+    labels:
+      com.datadoghq.ad.logs: '[{"source": "nodejs", "service": "task-management-worker"}]'
+
+  # ─── Web Frontend ────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: tm-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://api:3001
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ─── Database Migrations (run on-demand) ─────────────────
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: tm-migrate
+    env_file:
+      - apps/api/.env
+    environment:
+      NODE_OPTIONS: "--dns-result-order=ipv6first"
+    working_dir: /app
+    command: ["npx", "prisma", "migrate", "deploy", "--schema", "apps/api/prisma/schema.prisma"]
+    restart: "no"
+    profiles:
+      - tools

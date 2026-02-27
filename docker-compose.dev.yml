@@ -1,0 +1,76 @@
+# docker-compose.dev.yml — LOCAL DEVELOPMENT
+# Usage: docker compose -f docker-compose.dev.yml up -d
+# Uses managed Supabase Postgres + Azure Redis (from .env)
+# No Datadog — stdout logging only
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: tm-api
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    env_file:
+      - apps/api/.env
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      HOST: 0.0.0.0
+    healthcheck:
+      test:
+        ["CMD-SHELL", "wget -qO- http://localhost:3001/api/v1/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: tm-worker
+    restart: unless-stopped
+    command: ["node", "dist/worker.js"]
+    env_file:
+      - apps/api/.env
+    environment:
+      NODE_ENV: development
+      ENABLE_EMAIL: "true"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: tm-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://api:3001
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: tm-migrate
+    env_file:
+      - apps/api/.env
+    environment:
+      NODE_OPTIONS: "--dns-result-order=ipv6first"
+    working_dir: /app
+    command: ["npx", "prisma", "migrate", "deploy", "--schema", "apps/api/prisma/schema.prisma"]
+    restart: "no"
+    profiles:
+      - tools
